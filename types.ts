@@ -60,6 +60,7 @@ export interface Operator {
   qualification: 'DIR' | 'CP' | 'VIG' | 'ALTRO';
   available: boolean;
   statusMessage?: string;
+  unavailabilityEndDate?: string; // YYYY-MM-DD
   assignedHours: number;
   specializations?: string[];
   sede?: string;
