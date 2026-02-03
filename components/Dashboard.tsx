@@ -223,8 +223,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
   const [showNotifications, setShowNotifications] = useState(false);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showReportMenu, setShowReportMenu] = useState(false);
   const [dayApprovedState, setDayApprovedState] = useState(false);
   const datePickerRef = useRef<HTMLDivElement>(null);
+  const reportMenuRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -236,6 +238,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
     const handleClickOutside = (event: MouseEvent) => {
       if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
         setShowDatePicker(false);
+      }
+      if (reportMenuRef.current && !reportMenuRef.current.contains(event.target as Node)) {
+        setShowReportMenu(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -957,18 +962,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
                   <span>{dayApprovedState ? 'GIORNATA APPROVATA' : 'APPROVA GIORNATA'}</span>
                 </button>
              )}
+             
              <button 
                 onClick={handleDownloadExcel}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all"
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all shadow-sm active:scale-95"
              >
                 <FileSpreadsheetIcon className="w-4 h-4" />
-                <span className="hidden xl:inline">Excel</span>
+                <span className="hidden xl:inline">XLS</span>
              </button>
 
              <button 
                 onClick={handleDownloadPDF}
                 disabled={isPdfLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all disabled:opacity-50 shadow-sm active:scale-95"
              >
                 {isPdfLoading ? (
                     <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -978,8 +984,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
                 ) : (
                     <PdfIcon className="w-4 h-4" />
                 )}
-                <span className="hidden xl:inline">{isPdfLoading ? 'Generazione...' : 'Pdf'}</span>
+                <span className="hidden xl:inline">{isPdfLoading ? '...' : 'PDF'}</span>
              </button>
+
+             <div className="relative" ref={reportMenuRef}>
+               <button 
+                  onClick={() => setShowReportMenu(!showReportMenu)}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-[#720000] hover:text-white transition-all shadow-sm active:scale-95"
+               >
+                  <ClipboardIcon className="w-4 h-4" />
+                  <span className="hidden xl:inline">RAPP.</span>
+                  <svg className={`w-3 h-3 transition-transform ${showReportMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+               </button>
+               {showReportMenu && (
+                 <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-[80] animate-in slide-in-from-top-2 zoom-in-95">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-3 py-2 border-b border-slate-50 mb-1">Genera Rapporto Servizio</p>
+                    <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
+                      {displayEvents.map(ev => (
+                        <button 
+                          key={ev.id}
+                          onClick={() => { openRapportoPresenza(ev); setShowReportMenu(false); }}
+                          className="w-full text-left px-3 py-3 rounded-xl hover:bg-[#720000] hover:text-white group transition-all"
+                        >
+                           <div className="flex flex-col">
+                              <span className="text-[10px] font-black uppercase tracking-tight leading-none group-hover:text-white">{ev.code}</span>
+                              <span className="text-[8px] font-bold opacity-60 uppercase tracking-tighter mt-1.5 group-hover:text-white/80">{ev.timeWindow}</span>
+                           </div>
+                        </button>
+                      ))}
+                      {displayEvents.length === 0 && (
+                        <p className="text-[10px] text-slate-400 italic text-center py-6 uppercase font-black tracking-widest">Nessun servizio pianificato</p>
+                      )}
+                    </div>
+                 </div>
+               )}
+             </div>
 
              <button 
                 onClick={handleToggleNotifications}
@@ -1017,14 +1056,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
                      </div>
                   </button>
               ))}
-              {uniqueEventDates.length === 0 && (
-                  <p className="text-center py-4 text-xs text-slate-400 italic">Nessun servizio pianificato</p>
-              )}
            </div>
         </div>
       )}
 
-      <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-6 items-start transition-transform duration-500 bg-white md:bg-transparent" style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top left', width: `${100 / zoomLevel}%` }}>
+      <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,380px)] gap-6 items-start transition-transform duration-500 bg-white md:bg-transparent" style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top left', width: `${100 / zoomLevel}%` }}>
         {displayEvents.map(event => (
           <EventCard 
             key={event.id} 
@@ -1166,7 +1202,6 @@ const EventCard: React.FC<{
             const ownerIdx = priorityChain.indexOf(slotOwner);
             const immediatePredecessor = ownerIdx > 0 ? priorityChain[ownerIdx - 1] : null;
 
-            // canThisCompilatoreEdit è vero se l'utente è il proprietario corrente O il predecessore (per revoca)
             const canThisCompilatoreEdit = isCompilatore && (currentCompilatoreGroup === slotOwner || (entrustedTo && currentCompilatoreGroup === immediatePredecessor));
 
             let roleBg = "bg-slate-100";
@@ -1260,19 +1295,6 @@ const EventCard: React.FC<{
             </div>
 
             <div className="flex items-center gap-1 shrink-0 no-print overflow-visible">
-              <button 
-                type="button"
-                onClick={(e) => { 
-                  e.preventDefault();
-                  e.stopPropagation();
-                  openRapportoPresenza(event);
-                }} 
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all group/report border border-white/5"
-                title="Rapporto Presenza"
-              >
-                <ClipboardIcon className="w-4 h-4 transition-transform group-hover/report:scale-110" />
-              </button>
-
               {isRedattore && !dayApproved && (
                 <>
                   <button 
