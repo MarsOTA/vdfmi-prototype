@@ -1269,29 +1269,30 @@ const EventCard: React.FC<{
         })}
       </div>
 
-      <div className="p-2.5 bg-[#3A3835] border-t border-slate-50/10 flex flex-col shrink-0 min-h-[60px] justify-center overflow-visible">
-        <div className="flex items-center w-full px-2 gap-4 overflow-visible">
-            <div className="flex flex-col flex-1 min-w-0 pdf-no-overflow">
-              <span className="text-[8px] font-black text-white/40 uppercase tracking-widest leading-none mb-1">ORARIO SERVIZIO</span>
-              <span className="text-xl font-black text-[#EBE81D] leading-none tracking-tighter truncate pdf-no-truncate">{event.timeWindow}</span>
+      <div className="p-2 bg-[#3A3835] border-t border-slate-50/10 flex flex-col shrink-0 min-h-[64px] justify-center overflow-visible">
+        <div className="flex items-center w-full px-2 gap-3 overflow-visible">
+            <div className="flex flex-col shrink-0">
+              <span className="text-[7px] font-black text-white/40 uppercase tracking-widest leading-none mb-1">ORARIO SERVIZIO</span>
+              <span className="text-lg font-black text-[#EBE81D] leading-none tracking-tighter whitespace-nowrap">{event.timeWindow}</span>
             </div>
             
-            <div className="flex-1 flex flex-wrap items-center gap-1.5 no-print overflow-visible">
-               {event.vehicles.filter(v => v.qty > 0).map((v, vIdx) => (
-                 <div key={`${v.type}-${vIdx}`} className="relative group/vehicle px-2.5 py-1 bg-slate-800 rounded-lg text-[9px] font-black text-white border border-white/20 uppercase tracking-tighter shadow-sm shrink-0 cursor-help transition-all hover:bg-slate-700 overflow-visible">
-                   {v.type.toUpperCase()} <span className="text-[#EBE81D] ml-0.5">{v.qty}</span>
-                   
-                   {v.plate && (
-                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 pointer-events-none opacity-0 invisible group-hover/vehicle:opacity-100 group-hover/vehicle:visible transition-all duration-200 z-[999] transform translate-y-1 group-hover/vehicle:translate-y-0">
-                       <div className="bg-slate-900 text-white px-3 py-2 rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.5)] border border-white/20 flex flex-col items-center min-w-[120px]">
-                         <span className="text-[7px] font-black text-white/50 uppercase tracking-[0.2em] mb-1 whitespace-nowrap">TARGA MEZZO</span>
-                         <span className="text-[12px] font-mono font-black text-[#EBE81D] tracking-[0.15em] whitespace-nowrap drop-shadow-sm">{v.plate}</span>
-                         <div className="absolute top-[100%] left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-slate-900"></div>
-                       </div>
-                     </div>
-                   )}
-                 </div>
-               ))}
+            <div className="flex-1 overflow-x-auto scrollbar-hide py-1">
+               <div className="flex items-center gap-1.5">
+                  {event.vehicles.filter(v => v.qty > 0).map((v, vIdx) => (
+                    <div key={`${v.type}-${vIdx}`} className="relative group/vehicle px-2 py-1 bg-slate-800 rounded-lg text-[8px] font-black text-white border border-white/20 uppercase tracking-tighter shadow-sm shrink-0 cursor-help transition-all hover:bg-slate-700">
+                      {v.type.toUpperCase()} <span className="text-[#EBE81D] ml-0.5">{v.qty}</span>
+                      {v.plate && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 pointer-events-none opacity-0 invisible group-hover/vehicle:opacity-100 group-hover/vehicle:visible transition-all duration-200 z-[999] transform translate-y-1 group-hover/vehicle:translate-y-0">
+                          <div className="bg-slate-900 text-white px-2 py-1.5 rounded-lg shadow-xl border border-white/20 flex flex-col items-center min-w-[100px]">
+                            <span className="text-[6px] font-black text-white/50 uppercase tracking-widest mb-0.5 whitespace-nowrap">TARGA</span>
+                            <span className="text-[10px] font-mono font-black text-[#EBE81D] tracking-widest whitespace-nowrap">{v.plate}</span>
+                            <div className="absolute top-[100%] left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-slate-900"></div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+               </div>
             </div>
 
             <div className="flex items-center gap-1 shrink-0 no-print overflow-visible">
@@ -1299,36 +1300,28 @@ const EventCard: React.FC<{
                 <>
                   <button 
                     type="button"
-                    onClick={(e) => { 
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onEdit(); 
-                    }} 
-                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-[#C9A40E] text-white/40 hover:text-slate-900 transition-all group/edit border border-white/5"
-                    title="Modifica servizio"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(); }} 
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-[#C9A40E] text-white/40 hover:text-slate-900 transition-all group/edit border border-white/5"
+                    title="Modifica"
                   >
-                    <PencilIcon className="w-4 h-4 transition-transform group-hover/edit:scale-110" />
+                    <PencilIcon className="w-3.5 h-3.5" />
                   </button>
                   <button 
                     type="button"
-                    onClick={(e) => { 
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onDeleteRequest(); 
-                    }} 
-                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-red-600 text-white/40 hover:text-white transition-all group/del border border-white/5"
-                    title="Elimina servizio"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteRequest(); }} 
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-600 text-white/40 hover:text-white transition-all group/del border border-white/5"
+                    title="Elimina"
                   >
-                    <TrashIcon className="w-5 h-5 transition-transform group-hover/del:scale-110" />
+                    <TrashIcon className="w-4 h-4" />
                   </button>
                 </>
               )}
             </div>
 
             {dayApproved ? (
-              <div className="flex items-center gap-2 bg-emerald-600 px-3 py-1.5 rounded-full border border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.25)] animate-in zoom-in duration-300">
-                <FlagIcon className="w-4 h-4 text-white" />
-                <span className="text-[10px] font-black text-white uppercase tracking-widest">APPROVATO</span>
+              <div className="shrink-0 flex items-center gap-1.5 bg-emerald-600 px-2 py-1 rounded-lg border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                <FlagIcon className="w-3 h-3 text-white" />
+                <span className="text-[8px] font-black text-white uppercase">OK</span>
               </div>
             ) : (
               <PieChart percent={completionPercent} color="#EBE81D" />
