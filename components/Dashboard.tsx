@@ -290,6 +290,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
 
     localStorage.setItem(`approvedDay_${selectedDate}`, String(newState));
     setDayApprovedState(newState);
+    
+    // Aggiorna lo stato di tutti gli eventi della giornata selezionata
     setEvents(prev => prev.map(ev => {
       if (ev.date === selectedDate) {
         return { ...ev, status: newState ? EventStatus.APPROVATO : EventStatus.IN_COMPILAZIONE };
@@ -966,7 +968,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
                   </div>
                   <button 
                     onClick={handleToggleDayApproval}
-                    title={dayApprovedState ? "Disabilita approvazione" : "Approva ufficialmente la giornata"}
                     className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ring-offset-2 focus:ring-2 focus:ring-emerald-500 ${dayApprovedState ? 'bg-emerald-600' : 'bg-slate-300'}`}
                   >
                     <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${dayApprovedState ? 'translate-x-5' : 'translate-x-0'}`} />
