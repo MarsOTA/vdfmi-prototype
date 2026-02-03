@@ -256,7 +256,7 @@ export const StaffView: React.FC = () => {
                         <button 
                           onClick={() => toggleAvailability(op.id)}
                           title="Rendi Disponibile"
-                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl transition-all shadow-md group/action hover:bg-emerald-700 active:scale-95"
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl transition-all shadow-md group/action hover:bg-emerald-700 active:scale-95 border border-emerald-500/20"
                         >
                           <UserCheckIcon className="w-4 h-4 transition-transform group-hover/action:scale-110" />
                           <span className="text-[9px] font-black uppercase tracking-widest">Rendi disponibile</span>
@@ -269,11 +269,6 @@ export const StaffView: React.FC = () => {
             </tbody>
           </table>
         </div>
-        {filteredOperators.length === 0 && (
-          <div className="py-20 text-center bg-white">
-             <p className="text-slate-300 text-sm font-black uppercase tracking-[0.2em]">Nessun operatore trovato per i filtri selezionati</p>
-          </div>
-        )}
       </div>
 
       {isModalOpen && (
