@@ -122,8 +122,8 @@ const CustomCalendar: React.FC<{ selectedDate: string, onSelect: (date: string) 
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const padding = Array.from({ length: (firstDayOfMonth + 6) % 7 }, (_, i) => null);
   
-  const isSelected = (day: number) => {
-    const d = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const isSelected = (dayNum: number) => {
+    const d = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
     return d === selectedDate;
   };
   
@@ -735,10 +735,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
 
           ws.mergeCells(r0 + 8, c0, r0 + 8, c1);
           const vehicleCell = ws.getCell(r0 + 8, c0);
-          // Modificato per includere le targhe tra parentesi quadre nell'Excel
           const vehicleParts: string[] = ev.vehicles
             .filter(v => v.qty > 0)
-            .map(v => `${v.type.toUpperCase()} x${v.qty}${v.plate ? ` [${v.plate}]` : ''}`);
+            .map(v => `${v.type.toUpperCase()}${v.plate ? ` [${v.plate}]` : ''}`);
           vehicleCell.value = vehicleParts.join(' • ');
           vehicleCell.font = { name: 'Calibri', size: 13, bold: false };
           vehicleCell.alignment = { vertical: 'middle', horizontal: 'left' };
@@ -863,7 +862,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
       if (!prevGroup) return ev;
 
       const newEntrusted = [...targetReq.entrustedGroups];
-      // Se il gruppo precedente è il primo, mettiamo a null (default catena)
       newEntrusted[slotIndex] = prevGroup === priorityChain[0] ? null : prevGroup;
       targetReq.entrustedGroups = newEntrusted;
       
@@ -1166,8 +1164,8 @@ const EventCard: React.FC<{
   };
 
   return (
-    <div id={event.id} className={`bg-white rounded-xl shadow-md overflow-hidden flex flex-col border transition-all print-card-break ${isExpanded ? 'ring-2 ring-slate-900/10' : ''} border-slate-100`}>
-      <div className="flex h-14 shrink-0 border-b border-slate-50 relative group/header overflow-hidden">
+    <div id={event.id} className={`bg-white rounded-xl shadow-md overflow-visible flex flex-col border transition-all print-card-break ${isExpanded ? 'ring-2 ring-slate-900/10' : ''} border-slate-100 relative z-10`}>
+      <div className="flex h-14 shrink-0 border-b border-slate-50 relative group/header overflow-hidden rounded-t-xl">
         <div 
           className={`flex-1 ${headerStyle.bg} flex items-center px-4 gap-2 border-r border-white/10 relative transition-colors overflow-hidden pdf-no-overflow cursor-pointer`}
           onClick={onToggle}
@@ -1269,30 +1267,28 @@ const EventCard: React.FC<{
         })}
       </div>
 
-      <div className="p-2 bg-[#3A3835] border-t border-slate-50/10 flex flex-col shrink-0 min-h-[64px] justify-center overflow-visible">
+      <div className="p-2 bg-[#3A3835] border-t border-slate-50/10 flex flex-col shrink-0 min-h-[64px] justify-center overflow-visible rounded-b-xl relative z-20">
         <div className="flex items-center w-full px-2 gap-3 overflow-visible">
             <div className="flex flex-col shrink-0">
               <span className="text-[7px] font-black text-white/40 uppercase tracking-widest leading-none mb-1">ORARIO SERVIZIO</span>
               <span className="text-lg font-black text-[#EBE81D] leading-none tracking-tighter whitespace-nowrap">{event.timeWindow}</span>
             </div>
             
-            <div className="flex-1 overflow-x-auto scrollbar-hide py-1">
-               <div className="flex items-center gap-1.5">
-                  {event.vehicles.filter(v => v.qty > 0).map((v, vIdx) => (
-                    <div key={`${v.type}-${vIdx}`} className="relative group/vehicle px-2 py-1 bg-slate-800 rounded-lg text-[8px] font-black text-white border border-white/20 uppercase tracking-tighter shadow-sm shrink-0 cursor-help transition-all hover:bg-slate-700">
-                      {v.type.toUpperCase()} <span className="text-[#EBE81D] ml-0.5">{v.qty}</span>
-                      {v.plate && (
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 pointer-events-none opacity-0 invisible group-hover/vehicle:opacity-100 group-hover/vehicle:visible transition-all duration-200 z-[999] transform translate-y-1 group-hover/vehicle:translate-y-0">
-                          <div className="bg-slate-900 text-white px-2 py-1.5 rounded-lg shadow-xl border border-white/20 flex flex-col items-center min-w-[100px]">
-                            <span className="text-[6px] font-black text-white/50 uppercase tracking-widest mb-0.5 whitespace-nowrap">TARGA</span>
-                            <span className="text-[10px] font-mono font-black text-[#EBE81D] tracking-widest whitespace-nowrap">{v.plate}</span>
-                            <div className="absolute top-[100%] left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-slate-900"></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-               </div>
+            <div className="flex-1 flex flex-wrap gap-1.5 py-1 overflow-visible">
+               {event.vehicles.filter(v => v.qty > 0).map((v, vIdx) => (
+                 <div key={`${v.type}-${vIdx}`} className="relative group/vehicle px-3 py-1.5 bg-slate-800 rounded-lg text-[10px] font-black text-white border border-white/20 uppercase tracking-tighter shadow-sm shrink-0 cursor-help transition-all hover:bg-slate-700 overflow-visible">
+                   {v.type.toUpperCase()}
+                   {v.plate && (
+                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 pointer-events-none opacity-0 invisible group-hover/vehicle:opacity-100 group-hover/vehicle:visible transition-all duration-200 z-[9999] transform translate-y-1 group-hover/vehicle:translate-y-0">
+                       <div className="bg-slate-900 text-white px-3 py-2 rounded-xl shadow-2xl border border-white/20 flex flex-col items-center min-w-[120px] ring-4 ring-black/20">
+                         <span className="text-[7px] font-black text-white/50 uppercase tracking-widest mb-1 whitespace-nowrap">TARGA</span>
+                         <span className="text-[12px] font-mono font-black text-[#EBE81D] tracking-widest whitespace-nowrap">{v.plate}</span>
+                         <div className="absolute top-[100%] left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-slate-900"></div>
+                       </div>
+                     </div>
+                   )}
+                 </div>
+               ))}
             </div>
 
             <div className="flex items-center gap-1 shrink-0 no-print overflow-visible">
@@ -1524,7 +1520,7 @@ const AssignmentPopup: React.FC<{
                         </div>
                       </div>
                       <div className="col-span-2 flex items-center justify-start pl-1">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-black border shadow-sm ${
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-black border shadow-sm ${
                           op.group === 'A' ? 'bg-red-50 text-red-700 border-red-100' :
                           op.group === 'B' ? 'bg-blue-50 text-blue-700 border-blue-100' :
                           op.group === 'C' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
