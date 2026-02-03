@@ -269,24 +269,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
     return displayEvents.length > 0 && displayEvents.every(ev => getEventCompletion(ev) === 100);
   }, [displayEvents]);
 
-  const handleApproveDay = () => {
-    if (dayApprovedState) return;
-
-    if (!allComplete) {
-      if (!window.confirm("ATTENZIONE: Alcuni servizi non sono completati al 100%. Vuoi procedere comunque con l'approvazione formale della giornata?")) {
-        return;
+  const handleToggleDayApproval = () => {
+    const newState = !dayApprovedState;
+    
+    if (newState) {
+      if (!allComplete) {
+        if (!window.confirm("ATTENZIONE: Alcuni servizi non sono completati al 100%. Vuoi procedere comunque con l'approvazione formale della giornata?")) {
+          return;
+        }
+      } else {
+        if (!window.confirm(`Confermi l'approvazione definitiva di tutti i servizi per il giorno ${formatDate(selectedDate)}? Questa operazione bloccherà ulteriori modifiche.`)) {
+          return;
+        }
       }
     } else {
-      if (!window.confirm(`Confermi l'approvazione definitiva di tutti i servizi per il giorno ${formatDate(selectedDate)}? Questa operazione bloccherà ulteriori modifiche.`)) {
+      if (!window.confirm("Riaprire la giornata? Le modifiche verranno nuovamente abilitate per i compilatori.")) {
         return;
       }
     }
 
-    localStorage.setItem(`approvedDay_${selectedDate}`, 'true');
-    setDayApprovedState(true);
+    localStorage.setItem(`approvedDay_${selectedDate}`, String(newState));
+    setDayApprovedState(newState);
     setEvents(prev => prev.map(ev => {
       if (ev.date === selectedDate) {
-        return { ...ev, status: EventStatus.APPROVATO };
+        return { ...ev, status: newState ? EventStatus.APPROVATO : EventStatus.IN_COMPILAZIONE };
       }
       return ev;
     }));
@@ -951,14 +957,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
 
         <div className="flex-1 lg:flex-none ml-auto flex items-center gap-3 border-l border-slate-100 pl-4">
              {role === 'APPROVATORE' && (
-                <button 
-                  onClick={handleApproveDay}
-                  title={dayApprovedState ? "Giornata già approvata" : "Approva tutti i servizi della giornata"}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 border border-white/10 ${dayApprovedState ? 'bg-emerald-600 text-white opacity-100 cursor-default' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200 cursor-pointer'}`}
-                >
-                  {dayApprovedState ? <FlagIcon className="w-4.5 h-4.5" /> : <CheckCircleIcon className="w-4.5 h-4.5" />}
-                  <span>{dayApprovedState ? 'GIORNATA APPROVATA' : 'APPROVA GIORNATA'}</span>
-                </button>
+                <div className="flex items-center gap-4 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl shadow-sm">
+                  <div className="flex flex-col">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Stato Giorno</span>
+                    <span className={`text-[10px] font-black uppercase tracking-tighter leading-none ${dayApprovedState ? 'text-emerald-600' : 'text-[#720000]'}`}>
+                      {dayApprovedState ? 'APPROVATO' : 'IN COMPILAZIONE'}
+                    </span>
+                  </div>
+                  <button 
+                    onClick={handleToggleDayApproval}
+                    title={dayApprovedState ? "Disabilita approvazione" : "Approva ufficialmente la giornata"}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ring-offset-2 focus:ring-2 focus:ring-emerald-500 ${dayApprovedState ? 'bg-emerald-600' : 'bg-slate-300'}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${dayApprovedState ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
              )}
              
              <button 
@@ -985,38 +998,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
                 <span className="hidden xl:inline">{isPdfLoading ? '...' : 'PDF'}</span>
              </button>
 
-             <div className="relative" ref={reportMenuRef}>
-               <button 
-                  onClick={() => setShowReportMenu(!showReportMenu)}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-[#720000] hover:text-white transition-all shadow-sm active:scale-95"
-               >
-                  <ClipboardIcon className="w-4 h-4" />
-                  <span className="hidden xl:inline">RAPP.</span>
-                  <svg className={`w-3 h-3 transition-transform ${showReportMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
-               </button>
-               {showReportMenu && (
-                 <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-[80] animate-in slide-in-from-top-2 zoom-in-95">
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-3 py-2 border-b border-slate-50 mb-1">Genera Rapporto Servizio</p>
-                    <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
-                      {displayEvents.map(ev => (
-                        <button 
-                          key={ev.id}
-                          onClick={() => { openRapportoPresenza(ev); setShowReportMenu(false); }}
-                          className="w-full text-left px-3 py-3 rounded-xl hover:bg-[#720000] hover:text-white group transition-all"
-                        >
-                           <div className="flex flex-col">
-                              <span className="text-[10px] font-black uppercase tracking-tight leading-none group-hover:text-white">{ev.code}</span>
-                              <span className="text-[8px] font-bold opacity-60 uppercase tracking-tighter mt-1.5 group-hover:text-white/80">{ev.timeWindow}</span>
-                           </div>
-                        </button>
-                      ))}
-                      {displayEvents.length === 0 && (
-                        <p className="text-[10px] text-slate-400 italic text-center py-6 uppercase font-black tracking-widest">Nessun servizio pianificato</p>
-                      )}
-                    </div>
-                 </div>
-               )}
-             </div>
+             {role !== 'APPROVATORE' && (
+               <div className="relative" ref={reportMenuRef}>
+                 <button 
+                    onClick={() => setShowReportMenu(!showReportMenu)}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-[#720000] hover:text-white transition-all shadow-sm active:scale-95"
+                 >
+                    <ClipboardIcon className="w-4 h-4" />
+                    <span className="hidden xl:inline">RAPP.</span>
+                    <svg className={`w-3 h-3 transition-transform ${showReportMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                 </button>
+                 {showReportMenu && (
+                   <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-[80] animate-in slide-in-from-top-2 zoom-in-95">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-3 py-2 border-b border-slate-50 mb-1">Genera Rapporto Servizio</p>
+                      <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
+                        {displayEvents.map(ev => (
+                          <button 
+                            key={ev.id}
+                            onClick={() => { openRapportoPresenza(ev); setShowReportMenu(false); }}
+                            className="w-full text-left px-3 py-3 rounded-xl hover:bg-[#720000] hover:text-white group transition-all"
+                          >
+                             <div className="flex flex-col">
+                                <span className="text-[10px] font-black uppercase tracking-tight leading-none group-hover:text-white">{ev.code}</span>
+                                <span className="text-[8px] font-bold opacity-60 uppercase tracking-tighter mt-1.5 group-hover:text-white/80">{ev.timeWindow}</span>
+                             </div>
+                          </button>
+                        ))}
+                        {displayEvents.length === 0 && (
+                          <p className="text-[10px] text-slate-400 italic text-center py-6 uppercase font-black tracking-widest">Nessun servizio pianificato</p>
+                        )}
+                      </div>
+                   </div>
+                 )}
+               </div>
+             )}
 
              <button 
                 onClick={handleToggleNotifications}
