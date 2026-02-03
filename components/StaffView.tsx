@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { MOCK_OPERATORS, ALL_SEDI } from '../constants';
 import { Operator } from '../types';
 import { SEQ } from '../utils/turnarioLogic';
@@ -12,12 +12,19 @@ const UserRoundXIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const UserCheckIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <polyline points="16 11 18 13 22 9"/>
+  </svg>
+);
+
 export const StaffView: React.FC = () => {
   const [operators, setOperators] = useState<Operator[]>(MOCK_OPERATORS);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOp, setSelectedOp] = useState<Operator | null>(null);
   
-  // Stato per i dati dell'indisponibilità: solo motivo e date
   const [unavailabilityData, setUnavailabilityData] = useState({ 
     reason: 'Ferie', 
     startDate: new Date().toISOString().split('T')[0],
@@ -28,9 +35,23 @@ export const StaffView: React.FC = () => {
   const [groupFilter, setGroupFilter] = useState('TUTTI');
   const [sedeFilter, setSedeFilter] = useState('TUTTE');
 
+  // Gestione dello sblocco automatico basato sulla data odierna
+  useEffect(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const needsUpdate = operators.some(op => !op.available && op.unavailabilityEndDate && op.unavailabilityEndDate < todayStr);
+    
+    if (needsUpdate) {
+      setOperators(prev => prev.map(op => {
+        if (!op.available && op.unavailabilityEndDate && op.unavailabilityEndDate < todayStr) {
+          return { ...op, available: true, statusMessage: undefined, unavailabilityEndDate: undefined };
+        }
+        return op;
+      }));
+    }
+  }, [operators]);
+
   const openUnavailabilityModal = (op: Operator) => {
     setSelectedOp(op);
-    // Reset dello stato al momento dell'apertura
     setUnavailabilityData({
         reason: 'Ferie',
         startDate: new Date().toISOString().split('T')[0],
@@ -47,17 +68,37 @@ export const StaffView: React.FC = () => {
   const saveUnavailability = () => {
     if (!selectedOp) return;
     
-    // Creazione della stringa di stato che include il range temporale
     const statusMsg = `${unavailabilityData.reason.toUpperCase()} (${formatDateLabel(unavailabilityData.startDate)} - ${formatDateLabel(unavailabilityData.endDate)})`;
 
     const updatedOps = operators.map(op => 
       op.id === selectedOp.id 
-        ? { ...op, available: false, assignedHours: 0, statusMessage: statusMsg }
+        ? { 
+            ...op, 
+            available: false, 
+            assignedHours: 0, 
+            statusMessage: statusMsg, 
+            unavailabilityEndDate: unavailabilityData.endDate 
+          }
         : op
     );
     setOperators(updatedOps);
     setIsModalOpen(false);
     setSelectedOp(null);
+  };
+
+  const toggleAvailability = (opId: string) => {
+    setOperators(prev => prev.map(op => {
+      if (op.id === opId) {
+        const nextState = !op.available;
+        return { 
+          ...op, 
+          available: nextState, 
+          statusMessage: nextState ? undefined : op.statusMessage,
+          unavailabilityEndDate: nextState ? undefined : op.unavailabilityEndDate
+        };
+      }
+      return op;
+    }));
   };
 
   const filteredOperators = useMemo(() => {
@@ -135,13 +176,13 @@ export const StaffView: React.FC = () => {
                 <th className="px-6 py-4">SEDE</th>
                 <th className="px-6 py-4">GRUPPO</th>
                 <th className="px-6 py-4 text-center">Ore</th>
-                <th className="px-6 py-4 text-center w-20">Stato</th>
+                <th className="px-6 py-4 text-center w-32">Stato</th>
                 <th className="px-6 py-4 text-right pr-10">Azioni</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 bg-white">
               {filteredOperators.map(op => (
-                <tr key={op.id} className="hover:bg-slate-50 transition-all group border-l-4 border-transparent hover:border-[#720000]">
+                <tr key={op.id} className={`hover:bg-slate-50 transition-all group border-l-4 border-transparent hover:border-[#720000] ${!op.available ? 'bg-red-50/10' : ''}`}>
                   <td className="px-6 py-5">
                     <div className="flex flex-col">
                       <span className="text-slate-800 font-black text-sm uppercase group-hover:text-[#720000] transition-colors">{op.name}</span>
@@ -191,21 +232,37 @@ export const StaffView: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-5 text-center">
-                    <div className="flex justify-center">
-                      <div 
-                        title={op.available ? 'Disponibile' : op.statusMessage || 'Indisponibile'}
-                        className={`w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm ring-1 ring-slate-100 ${op.available ? 'bg-emerald-500' : 'bg-red-600'}`}
-                      ></div>
-                    </div>
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black border shadow-sm uppercase tracking-tighter ${op.available ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                      {op.available ? 'DISPONIBILE' : 'ASSENTE'}
+                    </span>
                   </td>
                   <td className="px-6 py-5 text-right pr-10">
-                    <button 
-                      onClick={() => openUnavailabilityModal(op)}
-                      title="Registra Indisponibilità"
-                      className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-[#720000] hover:text-white hover:border-[#720000] transition-all shadow-sm group/action"
-                    >
-                      <UserRoundXIcon className="transition-transform group-hover/action:scale-110" />
-                    </button>
+                    <div className="flex flex-col items-end gap-1">
+                      {!op.available && op.statusMessage && (
+                        <div className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-[8px] font-black uppercase tracking-tight mb-1 max-w-[120px] truncate" title={op.statusMessage}>
+                          {op.statusMessage}
+                        </div>
+                      )}
+                      
+                      {op.available ? (
+                        <button 
+                          onClick={() => openUnavailabilityModal(op)}
+                          title="Registra Indisponibilità"
+                          className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-xl transition-all shadow-sm group/action hover:bg-[#720000] hover:text-white hover:border-[#720000]"
+                        >
+                          <UserRoundXIcon className="transition-transform group-hover/action:scale-110" />
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => toggleAvailability(op.id)}
+                          title="Rendi Disponibile"
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl transition-all shadow-md group/action hover:bg-emerald-700 active:scale-95"
+                        >
+                          <UserCheckIcon className="w-4 h-4 transition-transform group-hover/action:scale-110" />
+                          <span className="text-[9px] font-black uppercase tracking-widest">Rendi disponibile</span>
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
