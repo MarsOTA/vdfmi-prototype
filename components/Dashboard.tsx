@@ -1,9 +1,8 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { MOCK_OPERATORS, ALL_SPECIALIZATIONS, ALL_SEDI, ALL_PATENTI } from '../constants.tsx';
-import { OperationalEvent, EventStatus, UserRole, PersonnelRequirement, VehicleEntry, VigilanceType, Operator } from '../types.ts';
-import { getMainDayCode, getPriorityChain, selectableForVigilanza } from '../utils/turnarioLogic.ts';
-import { openRapportoPresenza } from '../utils/rapportoPresenza.ts';
+import { MOCK_OPERATORS, ALL_SPECIALIZATIONS, ALL_SEDI, ALL_PATENTI } from '../constants';
+import { OperationalEvent, EventStatus, UserRole, PersonnelRequirement, VehicleEntry, VigilanceType, Operator } from '../types';
+import { getMainDayCode, getPriorityChain, selectableForVigilanza } from '../utils/turnarioLogic';
+import { openRapportoPresenza } from '../utils/rapportoPresenza';
 import ExcelJS from 'exceljs';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -117,8 +116,17 @@ const BellIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const ChevronLeft = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>;
-const ChevronRight = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>;
+const ChevronLeft = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m15 18-6-6 6-6"/>
+  </svg>
+);
+
+const ChevronRight = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m9 18 6-6-6-6"/>
+  </svg>
+);
 
 const CustomCalendar: React.FC<{ selectedDate: string, onSelect: (date: string) => void }> = ({ selectedDate, onSelect }) => {
   const [viewDate, setViewDate] = useState(new Date(selectedDate + 'T00:00:00' || new Date()));
@@ -222,7 +230,6 @@ interface DashboardProps {
   onEditEvent: (event: OperationalEvent) => void;
 }
 
-// Fixed duplicated definition and incomplete content below
 export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, selectedDate, setSelectedDate, onEditEvent }) => {
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [assignmentModal, setAssignmentModal] = useState<{ eventId: string, roleName: string, reqIndex: number, slotIndex: number } | null>(null);
@@ -916,7 +923,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
     <div className="mx-auto p-3 lg:p-4 space-y-4 pb-32 transition-all duration-500 relative max-w-[1800px]">
       <div className="flex flex-col lg:flex-row gap-4 items-center bg-white p-3 rounded-[1.5rem] border border-slate-200 shadow-sm no-print relative z-30">
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={() => navigateDay(-1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-[#720000] transition-all"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg></button>
+          <button onClick={() => navigateDay(-1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-[#720000] transition-all">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
           
           <div className="relative" ref={datePickerRef}>
             <button 
@@ -953,7 +962,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
             <CalendarIcon className="w-4 h-4" />
           </button>
 
-          <button onClick={() => navigateDay(1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-[#720000] transition-all"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7-7-7 7" /></svg></button>
+          <button onClick={() => navigateDay(1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-[#720000] transition-all">
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
         <div className="h-8 w-px bg-slate-100 hidden lg:block"></div>
         <div className="flex items-center gap-4 bg-slate-50 border border-slate-200 p-1.5 rounded-2xl shrink-0">
@@ -1038,7 +1049,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
                  >
                     <ClipboardIcon className="w-4 h-4" />
                     <span className="hidden xl:inline">RAPP.</span>
-                    <svg className={`w-3 h-3 transition-transform ${showReportMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                    <svg className={`w-3 h-3 transition-transform ${showReportMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>
                  </button>
                  {showReportMenu && (
                    <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-[80] animate-in slide-in-from-top-2 zoom-in-95">
@@ -1097,7 +1108,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
                         </span>
                      </div>
                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${date === selectedDate ? 'bg-white/20' : 'bg-white text-slate-300 group-hover:text-[#720000]'}`}>
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7-7-7 7" /></svg>
+                        <ChevronRight className="w-3 h-3" />
                      </div>
                   </button>
               ))}
