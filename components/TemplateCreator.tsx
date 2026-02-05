@@ -14,8 +14,8 @@ const VEHICLE_OPTIONS = [
   'APS',
   'ABP',
   'BUS',
-  'FURGONE',
-  'MEZZO PESANTE'
+  'FURG.',
+  'M.PES.'
 ];
 
 const CalendarIcon = ({ className }: { className?: string }) => (
