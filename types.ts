@@ -31,6 +31,7 @@ export interface PersonnelRequirement {
   assignedIds: (string | null)[];                 // dimensione qty
   entrustedGroups?: (string | null)[];            // dimensione qty: 'A'|'B'|'C'|'D'|'VACANTE'|null
   entrustedByGroups?: (string | null)[];          // dimensione qty: chi ha passato (provenienza)
+  assignedByGroups?: (string | null)[];           // dimensione qty: chi ha effettivamente inserito l'operatore
 
   specializations?: string[];
 }
