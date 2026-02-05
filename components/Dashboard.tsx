@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { MOCK_OPERATORS, ALL_SPECIALIZATIONS, ALL_SEDI, ALL_PATENTI } from '../constants.tsx';
 import { OperationalEvent, EventStatus, UserRole, PersonnelRequirement, VehicleEntry, VigilanceType, Operator } from '../types.ts';
@@ -25,6 +26,12 @@ const PencilIcon = ({ className }: { className?: string }) => (
 const TrashIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6m4-11v6" />
+  </svg>
+);
+
+const CalendarIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>
   </svg>
 );
 
@@ -215,6 +222,7 @@ interface DashboardProps {
   onEditEvent: (event: OperationalEvent) => void;
 }
 
+// Fixed duplicated definition and incomplete content below
 export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, selectedDate, setSelectedDate, onEditEvent }) => {
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [assignmentModal, setAssignmentModal] = useState<{ eventId: string, roleName: string, reqIndex: number, slotIndex: number } | null>(null);
@@ -849,8 +857,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
       newEntrusted[slotIndex] = nextGroup;
       targetReq.entrustedGroups = newEntrusted;
       
-      // Quando si passa la gestione, solitamente l'assegnazione corrente viene preservata o resettata?
-      // Qui resettiamo per permettere al subentrante di scegliere, ma manteniamo la logica esistente.
+      // Quando si passa la gestione, resettiamo per permettere al subentrante di scegliere.
       const newAssigned = [...targetReq.assignedIds];
       newAssigned[slotIndex] = null;
       targetReq.assignedIds = newAssigned;
@@ -937,6 +944,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
               </div>
             )}
           </div>
+
+          <button 
+            onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-[#720000] hover:bg-red-50 transition-all shadow-sm"
+            title="Oggi"
+          >
+            <CalendarIcon className="w-4 h-4" />
+          </button>
 
           <button onClick={() => navigateDay(1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-[#720000] transition-all"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7-7-7 7" /></svg></button>
         </div>
