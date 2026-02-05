@@ -795,6 +795,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
 
   const updateAssignment = (eventId: string, reqIndex: number, slotIndex: number, operatorId: string | null) => {
     if (dayApprovedState) return;
+    
+    const userGroup = role.startsWith('COMPILATORE') ? role.split('_')[1] : null;
+
     setEvents(prev => prev.map(ev => {
       if (ev.id !== eventId) return ev;
       const newReqs = [...ev.requirements];
@@ -804,9 +807,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
       newAssigned[slotIndex] = operatorId;
       targetReq.assignedIds = newAssigned;
       
+      // Registra chi ha effettuato l'assegnazione
+      if (!targetReq.assignedByGroups) targetReq.assignedByGroups = Array(targetReq.qty).fill(null);
+      const newAssignedBy = [...targetReq.assignedByGroups];
+      newAssignedBy[slotIndex] = operatorId ? userGroup : null;
+      targetReq.assignedByGroups = newAssignedBy;
+      
       if (!targetReq.entrustedGroups) targetReq.entrustedGroups = Array(targetReq.qty).fill(null);
-      const newEntries = [...targetReq.entrustedGroups];
-      targetReq.entrustedGroups = newEntries;
 
       newReqs[reqIndex] = targetReq;
 
@@ -841,9 +848,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
       const newEntrusted = [...targetReq.entrustedGroups];
       newEntrusted[slotIndex] = nextGroup;
       targetReq.entrustedGroups = newEntrusted;
+      
+      // Quando si passa la gestione, solitamente l'assegnazione corrente viene preservata o resettata?
+      // Qui resettiamo per permettere al subentrante di scegliere, ma manteniamo la logica esistente.
       const newAssigned = [...targetReq.assignedIds];
       newAssigned[slotIndex] = null;
       targetReq.assignedIds = newAssigned;
+      
+      if (!targetReq.assignedByGroups) targetReq.assignedByGroups = Array(targetReq.qty).fill(null);
+      const newAssBy = [...targetReq.assignedByGroups];
+      newAssBy[slotIndex] = null;
+      targetReq.assignedByGroups = newAssBy;
+
       newReqs[reqIndex] = targetReq;
       return { ...ev, requirements: newReqs };
     }));
@@ -1216,6 +1232,9 @@ const EventCard: React.FC<{
             const ownerIdx = priorityChain.indexOf(slotOwner);
             const immediatePredecessor = ownerIdx > 0 ? priorityChain[ownerIdx - 1] : null;
 
+            // Logica di protezione: un compilatore può cancellare solo se è LUI che ha fatto l'inserimento
+            const isOriginalAssigner = isCompilatore && req.assignedByGroups?.[unitIdx] === currentCompilatoreGroup;
+            
             const canThisCompilatoreEdit = isCompilatore && (currentCompilatoreGroup === slotOwner || (entrustedTo && currentCompilatoreGroup === immediatePredecessor));
 
             let roleBg = "bg-slate-100";
@@ -1234,7 +1253,8 @@ const EventCard: React.FC<{
                 <div className="flex-1 flex items-center px-2 py-1 bg-white min-w-0 gap-2">
                   {operator ? (
                     <div className="flex items-center w-full min-w-0 gap-1.5 overflow-visible">
-                       {isCompilatore && (operator.group === currentCompilatoreGroup || operator.group === 'EXTRA') && !dayApproved && (
+                       {/* PROTEZIONE: Il tasto rimuovi appare solo se l'utente attivo è il responsabile dell'inserimento */}
+                       {isOriginalAssigner && !dayApproved && (
                          <button 
                            onClick={(e) => { e.stopPropagation(); onRemoveAssignment(reqIdx, unitIdx); }} 
                            className="w-5 h-5 bg-red-50 text-[#720000] rounded-lg flex items-center justify-center hover:bg-[#A80505] hover:text-white transition-all no-print shrink-0 border border-red-200"
