@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { MOCK_OPERATORS, ALL_SPECIALIZATIONS, ALL_SEDI, ALL_PATENTI } from '../constants';
 import { OperationalEvent, EventStatus, UserRole, PersonnelRequirement, VehicleEntry, VigilanceType, Operator } from '../types';
@@ -6,6 +7,16 @@ import { openRapportoPresenza } from '../utils/rapportoPresenza';
 import ExcelJS from 'exceljs';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+
+// Mapping vincolante mezzi -> grado patente richiesto
+const PATENT_REQUIREMENTS: Record<string, number> = {
+  'M.PES.': 4,
+  'MEZZO PESANTE': 4,
+  'AS': 3,
+  'ABP': 3,
+  'APS': 3,
+  'BUS': 3
+};
 
 const UserPlusIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -166,21 +177,35 @@ const CustomCalendar: React.FC<{ selectedDate: string, onSelect: (date: string) 
   );
 };
 
-const PieChart: React.FC<{ percent: number; color: string }> = ({ percent, color }) => {
+const PieChart: React.FC<{ percent: number; color: string; alertMessage?: string | null }> = ({ percent, color, alertMessage }) => {
   const radius = 15;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percent / 100) * circumference;
+  const isAlert = !!alertMessage;
 
   return (
-    <div className="relative flex items-center justify-center w-12 h-12 shrink-0">
+    <div className="relative flex items-center justify-center w-12 h-12 shrink-0 group cursor-help">
       <svg className="w-12 h-12 transform -rotate-90 block">
         <circle cx="24" cy="24" r={radius} stroke="rgba(255,255,255,0.08)" strokeWidth="4" fill="rgba(0,0,0,0.15)" />
-        <circle cx="24" cy="24" r={radius} stroke={color} strokeWidth="4" fill="transparent" strokeDasharray={circumference} style={{ strokeDashoffset, transition: 'stroke-dashoffset 0.5s ease' }} strokeLinecap="round" />
+        <circle cx="24" cy="24" r={radius} stroke={isAlert ? '#EF4444' : color} strokeWidth="4" fill="transparent" strokeDasharray={circumference} style={{ strokeDashoffset, transition: 'stroke-dashoffset 0.5s ease' }} strokeLinecap="round" />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center leading-none text-white pointer-events-none">
-          <span className="text-[10px] font-black tracking-tighter block" data-pdf-percent="true">{percent}</span>
-          <span className="text-[6px] font-black opacity-80 block -mt-0.5">%</span>
+      <div className="absolute inset-0 flex items-center justify-center leading-none text-white pointer-events-none">
+          {isAlert ? (
+             <span className="text-2xl font-black text-red-500 animate-pulse pb-1">!</span>
+          ) : (
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] font-black tracking-tighter block" data-pdf-percent="true">{percent}</span>
+              <span className="text-[6px] font-black opacity-80 block -mt-0.5">%</span>
+            </div>
+          )}
       </div>
+
+      {isAlert && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 p-2.5 bg-slate-900 text-white text-[9px] font-black leading-tight rounded-xl shadow-2xl border border-white/20 z-[100] invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0">
+          {alertMessage}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-[8px] border-transparent border-t-slate-900"></div>
+        </div>
+      )}
     </div>
   );
 };
@@ -278,6 +303,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
     if (totalRequired === 0) return 100;
     const totalFilled = ev.requirements.reduce((acc, r) => acc + (r.assignedIds?.filter(Boolean).length || 0), 0);
     return Math.round((totalFilled / totalRequired) * 100);
+  };
+
+  const getLicenseAlert = (ev: OperationalEvent) => {
+    const completion = getEventCompletion(ev);
+    if (completion < 100) return null;
+
+    let maxReq = 0;
+    ev.vehicles.forEach(v => {
+      const req = PATENT_REQUIREMENTS[v.type.toUpperCase()] || 0;
+      if (req > maxReq) maxReq = req;
+    });
+
+    if (maxReq === 0) return null;
+
+    // Recupero operatori assegnati
+    const assignedOperatorIds = ev.requirements.flatMap(r => r.assignedIds.filter(Boolean)) as string[];
+    const assignedOperators = assignedOperatorIds.map(id => MOCK_OPERATORS.find(o => o.id === id)).filter(Boolean) as Operator[];
+
+    const hasValidDriver = assignedOperators.some(op => {
+      const gradeStr = op.tipoPatente || '0';
+      const grade = parseInt(gradeStr);
+      return grade >= maxReq;
+    });
+
+    if (!hasValidDriver) {
+      return `Attenzione: nessun operatore assegnato ha la patente richiesta per il mezzo selezionato - richiesto: ${maxReq}° grado`;
+    }
+    return null;
   };
 
   const allComplete = useMemo(() => {
@@ -1130,6 +1183,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, setEvents, role, s
             onDeleteRequest={() => setDeleteRequest([event.id])}
             onEdit={() => onEditEvent(event)}
             completionPercent={getEventCompletion(event)}
+            licenseAlert={getLicenseAlert(event)}
           />
         ))}
       </div>
@@ -1184,7 +1238,8 @@ const EventCard: React.FC<{
   onDeleteRequest: () => void;
   onEdit: () => void;
   completionPercent: number;
-}> = ({ event, role, dayApproved, isExpanded, onToggle, onOpenAssignment, onRemoveAssignment, onDeleteRequest, onEdit, completionPercent }) => {
+  licenseAlert: string | null;
+}> = ({ event, role, dayApproved, isExpanded, onToggle, onOpenAssignment, onRemoveAssignment, onDeleteRequest, onEdit, completionPercent, licenseAlert }) => {
   const currentCompilatoreGroup = role.startsWith('COMPILATORE') ? role.split('_')[1] : null;
   const isCompilatore = !!currentCompilatoreGroup;
   const isRedattore = role === 'REDATTORE';
@@ -1382,7 +1437,7 @@ const EventCard: React.FC<{
                 <span className="text-[8px] font-black text-white uppercase">OK</span>
               </div>
             ) : (
-              <PieChart percent={completionPercent} color="#EBE81D" />
+              <PieChart percent={completionPercent} color="#EBE81D" alertMessage={licenseAlert} />
             )}
         </div>
       </div>
@@ -1396,13 +1451,25 @@ const AssignmentPopup: React.FC<{
   assignedIds: (string | null)[]; slotIndex: number; events: OperationalEvent[];
 }> = ({ eventId, roleName, userRole, onClose, onAssign, onEntrust, onRevokeEntrust, assignedIds, slotIndex, events }) => {
   const [search, setSearch] = useState('');
-  const [specFilter, setSpecFilter] = useState('');
+  const [specFilters, setSpecFilters] = useState<string[]>([]);
+  const [showSpecDropdown, setShowSpecDropdown] = useState(false);
+  const specDropdownRef = useRef<HTMLDivElement>(null);
   const [sedePopupFilter, setSedePopupFilter] = useState('TUTTE');
   const [patenteFilter, setPatenteFilter] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: 'subgroup' | 'assignedHours', direction: 'asc' | 'desc' }>({ key: 'assignedHours', direction: 'asc' });
   
   const event = events.find(e => e.id === eventId);
   const userGroup = userRole.startsWith('COMPILATORE') ? userRole.split('_')[1] : null;
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (specDropdownRef.current && !specDropdownRef.current.contains(event.target as Node)) {
+        setShowSpecDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const globallyAssignedIdsForDate = useMemo(() => {
     if (!event) return new Set<string>();
@@ -1453,7 +1520,20 @@ const AssignmentPopup: React.FC<{
     }
     
     if (search) result = result.filter(op => op.name.toLowerCase().includes(search.toLowerCase()));
-    if (specFilter) result = result.filter(op => op.specializations?.includes(specFilter));
+    
+    // Multi-select specialization filter logic
+    if (specFilters.length > 0) {
+      result = result.filter(op => {
+        const opSpecs = op.specializations || [];
+        const hasNone = opSpecs.length === 0;
+
+        const matchesNone = specFilters.includes('NONE') && hasNone;
+        const matchesOthers = specFilters.some(s => s !== 'NONE' && opSpecs.includes(s));
+
+        return matchesNone || matchesOthers;
+      });
+    }
+
     if (sedePopupFilter !== 'TUTTE') result = result.filter(op => op.sede === sedePopupFilter);
     if (patenteFilter) result = result.filter(op => op.tipoPatente === patenteFilter);
     
@@ -1476,7 +1556,13 @@ const AssignmentPopup: React.FC<{
       return 0;
     });
     return result;
-  }, [roleName, search, userGroup, standard, extra, specFilter, sedePopupFilter, patenteFilter, sortConfig]);
+  }, [roleName, search, userGroup, standard, extra, specFilters, sedePopupFilter, patenteFilter, sortConfig]);
+
+  const toggleSpecFilter = (spec: string) => {
+    setSpecFilters(prev => 
+      prev.includes(spec) ? prev.filter(s => s !== spec) : [...prev, spec]
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -1530,10 +1616,56 @@ const AssignmentPopup: React.FC<{
                 <option value="">Filtra Patente: Tutte</option>
                 {ALL_PATENTI.map(p => <option key={p} value={p}>Patente {p}</option>)}
              </select>
-             <select value={specFilter} onChange={e => setSpecFilter(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-[10px] font-black uppercase focus:outline-none appearance-none cursor-pointer">
-                <option value="">Filtra Spec: Tutte</option>
-                {ALL_SPECIALIZATIONS.map(s => <option key={s} value={s}>{s}</option>)}
-             </select>
+             
+             {/* Multi-select for Specializations */}
+             <div className="relative" ref={specDropdownRef}>
+               <button 
+                 type="button"
+                 onClick={() => setShowSpecDropdown(!showSpecDropdown)}
+                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-[10px] font-black uppercase focus:outline-none text-left flex items-center justify-between"
+               >
+                 <span>
+                    {specFilters.length === 0 ? 'Filtra Spec: Tutte' : `Spec. Selezionate: ${specFilters.length}`}
+                 </span>
+                 <svg className={`w-3 h-3 transition-transform ${showSpecDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+               </button>
+               
+               {showSpecDropdown && (
+                 <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-[110] animate-in slide-in-from-top-2 zoom-in-95 overflow-hidden">
+                   <div className="max-h-60 overflow-y-auto scrollbar-thin">
+                     <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors group">
+                       <input 
+                         type="checkbox" 
+                         checked={specFilters.includes('NONE')} 
+                         onChange={() => toggleSpecFilter('NONE')}
+                         className="w-4 h-4 rounded border-slate-300 text-[#720000] focus:ring-[#720000]"
+                       />
+                       <span className="text-[10px] font-black uppercase text-slate-600 group-hover:text-[#720000]">Nessuna Spec.</span>
+                     </label>
+                     <div className="h-px bg-slate-100 my-1 mx-2"></div>
+                     {ALL_SPECIALIZATIONS.map(spec => (
+                       <label key={spec} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors group">
+                         <input 
+                           type="checkbox" 
+                           checked={specFilters.includes(spec)} 
+                           onChange={() => toggleSpecFilter(spec)}
+                           className="w-4 h-4 rounded border-slate-300 text-[#720000] focus:ring-[#720000]"
+                         />
+                         <span className="text-[10px] font-black uppercase text-slate-600 group-hover:text-[#720000]">{spec}</span>
+                       </label>
+                     ))}
+                   </div>
+                   {specFilters.length > 0 && (
+                      <button 
+                        onClick={() => setSpecFilters([])} 
+                        className="w-full mt-2 py-2 text-[9px] font-black uppercase text-[#720000] hover:bg-red-50 rounded-xl transition-colors border-t border-slate-50"
+                      >
+                        Reset Filtri
+                      </button>
+                   )}
+                 </div>
+               )}
+             </div>
          </div>
          
          <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
