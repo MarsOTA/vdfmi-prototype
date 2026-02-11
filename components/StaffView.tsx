@@ -1,7 +1,28 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { MOCK_OPERATORS, ALL_SEDI } from '../constants';
-import { Operator } from '../types';
+import { Operator, OperationalEvent } from '../types';
 import { SEQ } from '../utils/turnarioLogic';
+
+// Helper per il calcolo della durata (coerente con Dashboard.tsx)
+const getServiceDurationHours = (timeWindow: string): number => {
+  if (!timeWindow) return 0;
+  const parts = timeWindow.split(/\s*[-–—]\s*/).map(s => s.trim());
+  if (parts.length < 2) return 0;
+  
+  const parsePart = (part: string) => {
+    const [h, m] = part.split(':').map(Number);
+    return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m);
+  };
+
+  const startMins = parsePart(parts[0]);
+  const endMins = parsePart(parts[1]);
+  
+  let diffMinutes = endMins - startMins;
+  if (diffMinutes <= 0) diffMinutes += 24 * 60;
+  
+  return diffMinutes / 60;
+};
 
 const UserRoundXIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -20,7 +41,11 @@ const UserCheckIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export const StaffView: React.FC = () => {
+interface StaffViewProps {
+  events?: OperationalEvent[];
+}
+
+export const StaffView: React.FC<StaffViewProps> = ({ events = [] }) => {
   const [operators, setOperators] = useState<Operator[]>(MOCK_OPERATORS);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOp, setSelectedOp] = useState<Operator | null>(null);
@@ -35,7 +60,22 @@ export const StaffView: React.FC = () => {
   const [groupFilter, setGroupFilter] = useState('TUTTI');
   const [sedeFilter, setSedeFilter] = useState('TUTTE');
 
-  // Gestione dello sblocco automatico basato sulla data odierna
+  // FIX: Calcolo dinamico del carico ore basato sugli eventi attivi
+  const dynamicHoursMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    events.forEach(ev => {
+      const duration = getServiceDurationHours(ev.timeWindow);
+      ev.requirements.forEach(req => {
+        req.assignedIds.forEach(id => {
+          if (id) {
+            map[id] = (map[id] || 0) + duration;
+          }
+        });
+      });
+    });
+    return map;
+  }, [events]);
+
   useEffect(() => {
     const todayStr = new Date().toISOString().split('T')[0];
     const needsUpdate = operators.some(op => !op.available && op.unavailabilityEndDate && op.unavailabilityEndDate < todayStr);
@@ -181,91 +221,96 @@ export const StaffView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 bg-white">
-              {filteredOperators.map(op => (
-                <tr key={op.id} className={`hover:bg-slate-50 transition-all group border-l-4 border-transparent hover:border-[#720000] ${!op.available ? 'bg-red-50/10' : ''}`}>
-                  <td className="px-6 py-5">
-                    <div className="flex flex-col">
-                      <span className="text-slate-800 font-black text-sm uppercase group-hover:text-[#720000] transition-colors">{op.name}</span>
-                      <span className="text-slate-400 text-[10px] font-mono tracking-tighter">{op.id}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <div className="flex flex-col">
-                      <span className="text-slate-600 text-xs font-bold uppercase">{op.rank}</span>
-                      <span className="text-slate-400 text-[9px] font-black uppercase tracking-tighter">{op.qualification}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-black border border-slate-200 uppercase tracking-tighter">
-                      {op.tipoPatente || 'N/D'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 max-w-xs">
-                    <div className="flex flex-wrap gap-1">
-                      {op.specializations && op.specializations.length > 0 ? (
-                        op.specializations.map((spec, idx) => (
-                          <span key={idx} className="bg-slate-100 text-slate-500 text-[8px] font-black px-1.5 py-0.5 rounded uppercase border border-slate-200 tracking-tighter">
-                            {spec}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-slate-200 text-[8px] font-bold uppercase">Nessuna</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <span className="text-[10px] font-black text-slate-700 uppercase tracking-tighter">{op.sede || 'N/D'}</span>
-                  </td>
-                  <td className="px-6 py-5">
-                    <span className={`px-3 py-1.5 rounded-lg text-xs font-black border shadow-sm ${
-                      op.group === 'A' ? 'bg-red-50 text-red-700 border-red-100' :
-                      op.group === 'B' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                      op.group === 'C' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                      'bg-amber-50 text-amber-700 border-amber-100'
-                    }`}>
-                      {op.subgroup || op.group}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 text-center">
-                    <span className={`text-sm font-mono font-normal ${op.assignedHours && op.assignedHours > 0 ? 'text-[#720000]' : 'text-slate-300'}`}>
-                        {op.assignedHours ? op.assignedHours.toString().padStart(2, '0') : '00'}h
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 text-center">
-                    <span className={`px-3 py-1 rounded-full text-[9px] font-black border shadow-sm uppercase tracking-tighter ${op.available ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
-                      {op.available ? 'DISPONIBILE' : 'ASSENTE'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 text-right pr-10">
-                    <div className="flex flex-col items-end gap-1">
-                      {!op.available && op.statusMessage && (
-                        <div className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-[8px] font-black uppercase tracking-tight mb-1 max-w-[120px] truncate" title={op.statusMessage}>
-                          {op.statusMessage}
-                        </div>
-                      )}
-                      
-                      {op.available ? (
-                        <button 
-                          onClick={() => openUnavailabilityModal(op)}
-                          title="Registra Indisponibilità"
-                          className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-xl transition-all shadow-sm group/action hover:bg-[#720000] hover:text-white hover:border-[#720000]"
-                        >
-                          <UserRoundXIcon className="transition-transform group-hover/action:scale-110" />
-                        </button>
-                      ) : (
-                        <button 
-                          onClick={() => toggleAvailability(op.id)}
-                          title="Rendi Disponibile"
-                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl transition-all shadow-md group/action hover:bg-emerald-700 active:scale-95 border border-emerald-500/20"
-                        >
-                          <UserCheckIcon className="w-4 h-4 transition-transform group-hover/action:scale-110" />
-                          <span className="text-[9px] font-black uppercase tracking-widest">Rendi disponibile</span>
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filteredOperators.map(op => {
+                // Calcolo dinamico finale delle ore per la riga corrente
+                const totalHours = (op.assignedHours || 0) + (dynamicHoursMap[op.id] || 0);
+                
+                return (
+                  <tr key={op.id} className={`hover:bg-slate-50 transition-all group border-l-4 border-transparent hover:border-[#720000] ${!op.available ? 'bg-red-50/10' : ''}`}>
+                    <td className="px-6 py-5">
+                      <div className="flex flex-col">
+                        <span className="text-slate-800 font-black text-sm uppercase group-hover:text-[#720000] transition-colors">{op.name}</span>
+                        <span className="text-slate-400 text-[10px] font-mono tracking-tighter">{op.id}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex flex-col">
+                        <span className="text-slate-600 text-xs font-bold uppercase">{op.rank}</span>
+                        <span className="text-slate-400 text-[9px] font-black uppercase tracking-tighter">{op.qualification}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-black border border-slate-200 uppercase tracking-tighter">
+                        {op.tipoPatente || 'N/D'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 max-w-xs">
+                      <div className="flex flex-wrap gap-1">
+                        {op.specializations && op.specializations.length > 0 ? (
+                          op.specializations.map((spec, idx) => (
+                            <span key={idx} className="bg-slate-100 text-slate-500 text-[8px] font-black px-1.5 py-0.5 rounded uppercase border border-slate-200 tracking-tighter">
+                              {spec}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-slate-200 text-[8px] font-bold uppercase">Nessuna</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className="text-[10px] font-black text-slate-700 uppercase tracking-tighter">{op.sede || 'N/D'}</span>
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className={`px-3 py-1.5 rounded-lg text-xs font-black border shadow-sm ${
+                        op.group === 'A' ? 'bg-red-50 text-red-700 border-red-100' :
+                        op.group === 'B' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                        op.group === 'C' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                        'bg-amber-50 text-amber-700 border-amber-100'
+                      }`}>
+                        {op.subgroup || op.group}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <span className={`text-sm font-mono font-black ${totalHours > 0 ? 'text-[#720000]' : 'text-slate-300'}`}>
+                          {totalHours.toString().padStart(2, '0')}h
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <span className={`px-3 py-1 rounded-full text-[9px] font-black border shadow-sm uppercase tracking-tighter ${op.available ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                        {op.available ? 'DISPONIBILE' : 'ASSENTE'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 text-right pr-10">
+                      <div className="flex flex-col items-end gap-1">
+                        {!op.available && op.statusMessage && (
+                          <div className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-[8px] font-black uppercase tracking-tight mb-1 max-w-[120px] truncate" title={op.statusMessage}>
+                            {op.statusMessage}
+                          </div>
+                        )}
+                        
+                        {op.available ? (
+                          <button 
+                            onClick={() => openUnavailabilityModal(op)}
+                            title="Registra Indisponibilità"
+                            className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-xl transition-all shadow-sm group/action hover:bg-[#720000] hover:text-white hover:border-[#720000]"
+                          >
+                            <UserRoundXIcon className="transition-transform group-hover/action:scale-110" />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => toggleAvailability(op.id)}
+                            title="Rendi Disponibile"
+                            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl transition-all shadow-md group/action hover:bg-emerald-700 active:scale-95 border border-emerald-500/20"
+                          >
+                            <UserCheckIcon className="w-4 h-4 transition-transform group-hover/action:scale-110" />
+                            <span className="text-[9px] font-black uppercase tracking-widest">Rendi disponibile</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
