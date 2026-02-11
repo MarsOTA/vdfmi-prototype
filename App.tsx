@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
@@ -7,26 +8,14 @@ import { OlympicGenerator } from './components/OlympicGenerator';
 import { LoginScreen } from './components/LoginScreen';
 import { ScreenType, UserRole, OperationalEvent } from './types';
 import { MOCK_EVENTS } from './constants';
-import { loadAppState, saveAppState } from './utils/localStorageState';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeScreen, setActiveScreen] = useState<ScreenType>('DASHBOARD');
-  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
-    const persisted = loadAppState();
-    return persisted?.role || 'COMPILATORE_A';
-  });
+  const [currentRole, setCurrentRole] = useState<UserRole>('COMPILATORE_A');
   const [currentDate, setCurrentDate] = useState('');
-  const [events, setEvents] = useState<OperationalEvent[]>(() => {
-    const persisted = loadAppState();
-    return persisted?.events?.length ? persisted.events : MOCK_EVENTS;
-  });
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const persisted = loadAppState();
-    if (persisted?.selectedDate) return persisted.selectedDate;
-    // fallback ragionevole: prima data presente negli eventi, altrimenti una default stabile
-    return (persisted?.events?.[0]?.date) || (MOCK_EVENTS?.[0]?.date) || '2026-02-17';
-  });
+  const [events, setEvents] = useState<OperationalEvent[]>(MOCK_EVENTS);
+  const [selectedDate, setSelectedDate] = useState('2026-02-17');
   const [editingEvent, setEditingEvent] = useState<OperationalEvent | null>(null);
 
   useEffect(() => {
@@ -41,11 +30,6 @@ const App: React.FC = () => {
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
-
-  // Persistenza: salva eventi + data selezionata + ruolo (non salviamo la sessione login)
-  useEffect(() => {
-    saveAppState({ events, selectedDate, role: currentRole });
-  }, [events, selectedDate, currentRole]);
 
   const handleLogin = (role: UserRole) => {
     setCurrentRole(role);
@@ -115,7 +99,7 @@ const App: React.FC = () => {
             onEditEvent={handleStartEdit}
           />
         )}
-        {activeScreen === 'STAFF' && <StaffView />}
+        {activeScreen === 'STAFF' && <StaffView events={events} />}
         {activeScreen === 'CREAZIONE' && (
           <TemplateCreator 
             onSave={handleSaveEvent} 
